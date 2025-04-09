@@ -1,9 +1,6 @@
 name: Build and Deploy JAR
 
-on:
-  push:
-    tags:
-      - 'v*'  # Trigger only when a version tag is pushed (e.g., v1.0.0)
+on: [push]
 
 jobs:
   build:
