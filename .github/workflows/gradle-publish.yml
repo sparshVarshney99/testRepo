@@ -9,8 +9,10 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.create_tag.outputs.tag }}
 
     steps:
       - name: Checkout code
@@ -28,19 +30,34 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
-      - name: Create Git tag
+      - name: Create and push Git tag
+        id: create_tag
         run: |
-          VERSION="v$(date +'%Y%m%d%H%M%S')"
+          TAG_NAME="v$(date +'%Y%m%d%H%M%S')"
+          echo "Generated tag: $TAG_NAME"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag $VERSION
-          git push origin $VERSION
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git tag "$TAG_NAME"
+          git push origin "$TAG_NAME"
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Important to access tags
+
+      - name: Download built artifacts (optional if you're uploading)
+        run: echo "Assume JAR is built and committed, or use upload-artifact in build job"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ needs.build.outputs.tag_name }}
           files: build/libs/*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
