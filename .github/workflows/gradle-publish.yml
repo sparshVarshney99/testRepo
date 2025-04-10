@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build, Release & Deploy
 
 on:
   push:
@@ -77,4 +77,20 @@ jobs:
               repo: context.repo.repo,
             });
             const asset = release.data.assets.find(a => a.name.endsWith('.jar'));
-            if (!asset) throw new Error("No .jar found in latest release
+            if (!asset) throw new Error("No .jar found in latest release.");
+            return asset.browser_download_url;
+          result-encoding: string
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || 22 }}
+          script: |
+            mkdir -p ~/app
+            cd ~/app
+            wget -O app.jar "${{ steps.get_download_url.outputs.result }}"
+            pkill -f 'java -jar' || true
+            nohup java -jar app.jar > app.log 2>&1 &
