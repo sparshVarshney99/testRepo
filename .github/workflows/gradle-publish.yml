@@ -49,7 +49,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Important to access tags
+          fetch-depth: 0
 
       - name: Download built artifacts (optional if you're uploading)
         run: echo "Assume JAR is built and committed, or use upload-artifact in build job"
@@ -61,3 +61,20 @@ jobs:
           files: build/libs/*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    needs: release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get latest release asset URL
+        id: get_download_url
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const release = await github.rest.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const asset = release.data.assets.find(a => a.name.endsWith('.jar'));
+            if (!asset) throw new Error("No .jar found in latest release
