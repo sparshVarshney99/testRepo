@@ -100,7 +100,21 @@
             script: |
               mkdir -p ~/app
               cd ~/app
+
+              echo "📦 Downloading latest JAR..."
               wget -O app.jar "${{ steps.get_download_url.outputs.result }}"
+
+              echo "🛑 Stopping any old app instance..."
               pkill -f 'java -jar' || true
-              fuser -k 8080/tcp || true
+
+              echo "🧹 Cleaning up old log (optional)..."
+              rm -f app.log
+
+              echo "🚀 Starting new app instance..."
               nohup java -jar app.jar > app.log 2>&1 &
+
+              echo "⏳ Waiting a few seconds for app to start..."
+              sleep 5
+
+              echo "✅ Checking if app is running:"
+              pgrep -f 'java -jar' && echo "App started!" || echo "❌ Failed to start app"
