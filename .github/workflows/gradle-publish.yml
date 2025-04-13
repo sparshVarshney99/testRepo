@@ -101,20 +101,24 @@
               mkdir -p ~/app
               cd ~/app
 
-              echo "📦 Downloading latest JAR..."
+              echo "📦 Downloading new JAR..."
               wget -O app.jar "${{ steps.get_download_url.outputs.result }}"
 
-              echo "🛑 Stopping any old app instance..."
-              pkill -f 'java -jar' || true
+              echo "🛑 Killing existing app (if running)..."
+              if [ -f app.pid ]; then
+                kill -9 $(cat app.pid) || true
+                rm app.pid
+              fi
 
-              echo "🧹 Cleaning up old log (optional)..."
-              rm -f app.log
-
-              echo "🚀 Starting new app instance..."
+              echo "🚀 Starting new app in background..."
               nohup java -jar app.jar > app.log 2>&1 &
+              echo $! > app.pid
 
-              echo "⏳ Waiting a few seconds for app to start..."
+              echo "⏳ Waiting for app to start..."
               sleep 5
 
-              echo "✅ Checking if app is running:"
-              pgrep -f 'java -jar' && echo "App started!" || echo "❌ Failed to start app"
+              echo "📋 Checking if app is running..."
+              ps -p $(cat app.pid) && echo "✅ App is running!" || echo "❌ App failed to start"
+
+              echo "📄 Tailing app.log:"
+              tail -n 20 app.log
