@@ -85,7 +85,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
             });
-            const asset = release.data.assets.find(a => a.name.endsWith('.jar'));
+            const asset = release.data.assets.find(a => a.name.endsWith('-SNAPSHOT.jar') && !a.name.includes('-plain'));
             if (!asset) throw new Error("No .jar found in latest release.");
             return asset.browser_download_url;
           result-encoding: string
