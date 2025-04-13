@@ -101,5 +101,5 @@ jobs:
             mkdir -p ~/app
             cd ~/app
             wget -O app.jar "${{ steps.get_download_url.outputs.result }}"
-            pkill -f 'java -jar' || true
+            fuser -k 8080/tcp || true
             nohup java -jar app.jar > app.log 2>&1 &
