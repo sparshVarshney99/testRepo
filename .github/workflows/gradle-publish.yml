@@ -108,17 +108,17 @@ jobs:
 
             # Kill using app.pid if exists
             if [ -f app.pid ]; then
-              kill -9 $(cat app.pid) && echo "🧹 Killed app from app.pid" || echo "⚠️ No PID found or already stopped"
+              kill -9 $(cat app.pid) && echo "🧹 Killed app from app.pid" || echo "⚠️ PID not alive"
               rm -f app.pid
             fi
 
-            # Also kill anything running on port 8080
-            PORT_PID=$(lsof -ti:8080 || true)
-            if [ ! -z "$PORT_PID" ]; then
-              echo "⚠️ Port 8080 is in use by PID $PORT_PID. Killing..."
-              kill -9 $PORT_PID || true
+            # Kill any java process that is running app.jar (in case pid file is missing)
+            EXISTING_PID=$(ps aux | grep '[j]ava -jar app.jar' | awk '{print $2}')
+            if [ ! -z "$EXISTING_PID" ]; then
+              echo "⚠️ Found existing java process running app.jar with PID $EXISTING_PID, killing it..."
+              kill -9 $EXISTING_PID
             else
-              echo "✅ Port 8080 is free"
+              echo "✅ No existing app.jar process found"
             fi
 
             echo "🚀 Starting new app in background..."
