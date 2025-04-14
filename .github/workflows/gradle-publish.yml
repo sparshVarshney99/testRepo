@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag_name: ${{ steps.create_tag.outputs.tag }}
-      jar_name: ${{ steps.set_jar_name.outputs.jar_name }}
 
     steps:
       - name: Checkout code
@@ -29,25 +28,19 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build with Gradle
-        run: ./gradlew clean build
-
-      - name: Set JAR name with timestamp
-        id: set_jar_name
-        run: |
-          JAR_NAME="app-$(date +'%Y%m%d%H%M%S').jar"
-          mv build/libs/*-SNAPSHOT.jar build/libs/$JAR_NAME
-          echo "jar_name=$JAR_NAME" >> $GITHUB_OUTPUT
+        run: ./gradlew build
 
       - name: Upload built JAR as artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-jar
-          path: build/libs/${{ steps.set_jar_name.outputs.jar_name }}
+          path: build/libs/*.jar
 
       - name: Create and push Git tag
         id: create_tag
         run: |
           TAG_NAME="v$(date +'%Y%m%d%H%M%S')"
+          echo "Generated tag: $TAG_NAME"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "$TAG_NAME"
@@ -74,12 +67,12 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.build.outputs.tag_name }}
-          files: build/libs/${{ needs.build.outputs.jar_name }}
+          files: build/libs/*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   deploy:
-    needs: [build, release]
+    needs: release
     runs-on: ubuntu-latest
 
     steps:
@@ -92,9 +85,8 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
             });
-            const jarName = `${{ needs.build.outputs.jar_name }}`;
-            const asset = release.data.assets.find(a => a.name === jarName);
-            if (!asset) throw new Error("JAR not found in latest release.");
+            const asset = release.data.assets.find(a => a.name.endsWith('-SNAPSHOT.jar') && !a.name.includes('-plain'));
+            if (!asset) throw new Error("No .jar found in latest release.");
             return asset.browser_download_url;
           result-encoding: string
 
@@ -110,13 +102,23 @@ jobs:
             cd ~/app
 
             echo "📦 Downloading new JAR..."
-            rm -f app.jar
             wget -O app.jar "${{ steps.get_download_url.outputs.result }}"
 
             echo "🛑 Killing existing app (if running)..."
+
+            # Kill using app.pid if exists
             if [ -f app.pid ]; then
-              kill -9 $(cat app.pid) || true
-              rm app.pid
+              kill -9 $(cat app.pid) && echo "🧹 Killed app from app.pid" || echo "⚠️ No PID found or already stopped"
+              rm -f app.pid
+            fi
+
+            # Also kill anything running on port 8080
+            PORT_PID=$(lsof -ti:8080 || true)
+            if [ ! -z "$PORT_PID" ]; then
+              echo "⚠️ Port 8080 is in use by PID $PORT_PID. Killing..."
+              kill -9 $PORT_PID || true
+            else
+              echo "✅ Port 8080 is free"
             fi
 
             echo "🚀 Starting new app in background..."
