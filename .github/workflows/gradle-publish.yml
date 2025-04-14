@@ -112,15 +112,6 @@ jobs:
               rm -f app.pid
             fi
 
-            # Kill any java process that is running app.jar (in case pid file is missing)
-            EXISTING_PID=$(ps aux | grep '[j]ava -jar app.jar' | awk '{print $2}')
-            if [ ! -z "$EXISTING_PID" ]; then
-              echo "⚠️ Found existing java process running app.jar with PID $EXISTING_PID, killing it..."
-              kill -9 $EXISTING_PID
-            else
-              echo "✅ No existing app.jar process found"
-            fi
-
             echo "🚀 Starting new app in background..."
             nohup java -jar app.jar > app.log 2>&1 &
             echo $! > app.pid
